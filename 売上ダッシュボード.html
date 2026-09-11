@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>売上ダッシュボード</title>
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 48px 16px;
+    background: #f4f5f7;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #2b2d34;
+  }
+
+  #page {
+    width: 100%;
+    max-width: 1040px;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    margin: 0 0 4px;
+    font-weight: 700;
+  }
+
+  #subtitle {
+    color: #6b6f7a;
+    margin: 0 0 24px;
+    font-size: 0.9rem;
+  }
+
+  .card {
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .card h2 {
+    font-size: 1.05rem;
+    margin: 0 0 16px;
+    font-weight: 700;
+  }
+
+  #kpiGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .kpi {
+    background: #f7f9fd;
+    border: 1px solid #e8ecf5;
+    border-radius: 12px;
+    padding: 16px;
+  }
+
+  .kpi .label {
+    font-size: 0.8rem;
+    color: #6b6f7a;
+    margin-bottom: 6px;
+  }
+
+  .kpi .value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #2b4fb0;
+  }
+
+  canvas {
+    width: 100%;
+    display: block;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin-top: 16px;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid #edeff3;
+  }
+
+  th {
+    color: #6b6f7a;
+    font-weight: 600;
+    font-size: 0.8rem;
+  }
+
+  td.num, th.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  .rank {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    border-radius: 6px;
+    background: #eef2fb;
+    color: #2b4fb0;
+    font-weight: 700;
+    font-size: 0.75rem;
+    margin-right: 8px;
+  }
+
+  @media (max-width: 640px) {
+    #kpiGrid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  #filterCard {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 20px;
+  }
+
+  .filterGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .filterGroup .label {
+    font-size: 0.8rem;
+    color: #6b6f7a;
+    font-weight: 600;
+  }
+
+  .dateRange {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  input[type="date"] {
+    padding: 8px 10px;
+    font-size: 0.9rem;
+    border: 1px solid #dcdde3;
+    border-radius: 8px;
+    outline: none;
+    font-family: inherit;
+    color: #2b2d34;
+  }
+
+  #sourceChips, #categoryChips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border: 1px solid #dcdde3;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    user-select: none;
+    background: #fff;
+    color: #4a4d57;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+
+  .chip input { display: none; }
+
+  .chip.active {
+    background: #2b4fb0;
+    border-color: #2b4fb0;
+    color: #fff;
+  }
+
+  #resetFilters {
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    border: 1px solid #dcdde3;
+    border-radius: 8px;
+    background: #fff;
+    color: #4a4d57;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  #resetFilters:hover { background: #f4f5f7; }
+
+  #emptyState {
+    color: #6b6f7a;
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 24px 0;
+  }
+
+  #dropZone {
+    border: 1px dashed #c7cbd6;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 0.78rem;
+    color: #8a8d97;
+    text-align: center;
+    white-space: nowrap;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+  }
+
+  body.drag-over #dropZone {
+    border-color: #2b4fb0;
+    background: #f0f4fd;
+    color: #2b4fb0;
+  }
+
+  .chip.local { border-style: dashed; }
+
+  .chip .removeBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.12);
+    font-size: 0.7rem;
+    line-height: 1;
+  }
+
+  .chip.active .removeBtn { background: rgba(255, 255, 255, 0.3); }
+
+  #toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    max-width: 320px;
+    background: #2b2d34;
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  #toast.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+<div id="page">
+  <h1>売上ダッシュボード</h1>
+  <p id="subtitle">サーバー上の売上CSVを集計(期間: <span id="periodLabel">-</span>)</p>
+
+  <div class="card" id="filterCard">
+    <div class="filterGroup">
+      <div class="label">データソース(CSV)</div>
+      <div id="sourceChips"></div>
+      <div id="dropZone">ここにCSVをドラッグ&amp;ドロップして追加</div>
+    </div>
+    <div class="filterGroup">
+      <div class="label">期間</div>
+      <div class="dateRange">
+        <input type="date" id="startDate">
+        <span>〜</span>
+        <input type="date" id="endDate">
+      </div>
+    </div>
+    <div class="filterGroup">
+      <div class="label">カテゴリ</div>
+      <div id="categoryChips"></div>
+    </div>
+    <button id="resetFilters" type="button">リセット</button>
+  </div>
+
+  <div class="card">
+    <div id="kpiGrid">
+      <div class="kpi">
+        <div class="label">合計売上</div>
+        <div class="value" id="kpiTotal">-</div>
+      </div>
+      <div class="kpi">
+        <div class="label">取引件数</div>
+        <div class="value" id="kpiCount">-</div>
+      </div>
+      <div class="kpi">
+        <div class="label">総販売数量</div>
+        <div class="value" id="kpiQty">-</div>
+      </div>
+      <div class="kpi">
+        <div class="label">平均客単価</div>
+        <div class="value" id="kpiAvg">-</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="emptyState" class="card" hidden></div>
+
+  <div id="resultsWrap" hidden>
+    <div class="card">
+      <h2>月別売上推移</h2>
+      <canvas id="monthChart" height="260"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>商品別売上ランキング</h2>
+      <canvas id="productChart" height="320"></canvas>
+      <table>
+        <thead>
+          <tr>
+            <th>商品名</th>
+            <th class="num">売上金額</th>
+            <th class="num">数量</th>
+            <th class="num">件数</th>
+          </tr>
+        </thead>
+        <tbody id="productTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const yen = n => "¥" + Math.round(n).toLocaleString("ja-JP");
+const EXPECTED_HEADER = "日付,商品名,カテゴリ,地域,数量,単価,売上金額";
+
+function parseCsv(text) {
+  return text.trim().split("\n").slice(1).map(line => {
+    const c = line.split(",");
+    return {
+      date: c[0],
+      month: c[0].slice(0, 7),
+      product: c[1],
+      category: c[2],
+      region: c[3],
+      qty: Number(c[4]),
+      price: Number(c[5]),
+      sales: Number(c[6]),
+    };
+  });
+}
+
+const startInput = document.getElementById("startDate");
+const endInput = document.getElementById("endDate");
+const sourceChipsWrap = document.getElementById("sourceChips");
+const categoryChipsWrap = document.getElementById("categoryChips");
+const emptyState = document.getElementById("emptyState");
+const resultsWrap = document.getElementById("resultsWrap");
+
+let rows = [];
+const activeSources = new Set();
+const activeCategories = new Set();
+const localFiles = new Map(); // ドラッグ&ドロップで追加したファイル名 -> CSVテキスト
+
+function showMessage(msg) {
+  emptyState.hidden = false;
+  emptyState.textContent = msg;
+  resultsWrap.hidden = true;
+}
+
+let toastTimer;
+function showToast(msg) {
+  const toast = document.getElementById("toast");
+  toast.textContent = msg;
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("show"), 3500);
+}
+
+async function fetchCsvList() {
+  const res = await fetch("/api/csvs");
+  if (!res.ok) throw new Error("failed to list csvs");
+  return res.json();
+}
+
+async function loadSelectedRows() {
+  const files = [...activeSources];
+  if (files.length === 0) {
+    rows = [];
+    return;
+  }
+  const texts = await Promise.all(files.map(f =>
+    localFiles.has(f) ? Promise.resolve(localFiles.get(f)) : fetch(f).then(r => r.text())
+  ));
+  rows = texts.flatMap(parseCsv);
+}
+
+function refreshDateBounds() {
+  if (rows.length === 0) return;
+  const dates = rows.map(r => r.date).sort();
+  const minDate = dates[0];
+  const maxDate = dates[dates.length - 1];
+  startInput.min = endInput.min = minDate;
+  startInput.max = endInput.max = maxDate;
+  startInput.value = minDate;
+  endInput.value = maxDate;
+}
+
+function refreshCategoryChips() {
+  const categories = [...new Set(rows.map(r => r.category))];
+  categoryChipsWrap.innerHTML = "";
+  activeCategories.clear();
+  categories.forEach(cat => {
+    activeCategories.add(cat);
+    const label = document.createElement("label");
+    label.className = "chip active";
+    label.innerHTML = `<input type="checkbox" checked value="${cat}">${cat}`;
+    const checkbox = label.querySelector("input");
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) activeCategories.add(cat);
+      else activeCategories.delete(cat);
+      label.classList.toggle("active", checkbox.checked);
+      renderAll();
+    });
+    categoryChipsWrap.appendChild(label);
+  });
+}
+
+async function onDataChanged() {
+  await loadSelectedRows();
+  refreshDateBounds();
+  refreshCategoryChips();
+  renderAll();
+}
+
+function addSourceChip(name, opts = {}) {
+  activeSources.add(name);
+  const label = document.createElement("label");
+  label.className = "chip active" + (opts.local ? " local" : "");
+  label.dataset.name = name;
+  label.innerHTML = `<input type="checkbox" checked value="${name}">${name}` +
+    (opts.local ? `<span class="removeBtn" title="削除">×</span>` : "");
+  const checkbox = label.querySelector("input");
+  checkbox.addEventListener("change", async () => {
+    if (checkbox.checked) activeSources.add(name);
+    else activeSources.delete(name);
+    label.classList.toggle("active", checkbox.checked);
+    await onDataChanged();
+  });
+  if (opts.local) {
+    label.querySelector(".removeBtn").addEventListener("click", async e => {
+      e.preventDefault();
+      e.stopPropagation();
+      localFiles.delete(name);
+      activeSources.delete(name);
+      label.remove();
+      await onDataChanged();
+    });
+  }
+  sourceChipsWrap.appendChild(label);
+  return label;
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file, "utf-8");
+  });
+}
+
+async function handleDroppedFiles(fileList) {
+  const files = [...fileList].filter(f => f.name.toLowerCase().endsWith(".csv"));
+  if (files.length === 0) {
+    showToast("CSVファイルをドロップしてください。");
+    return;
+  }
+  let added = 0;
+  for (const file of files) {
+    let text;
+    try {
+      text = await readFileAsText(file);
+    } catch (e) {
+      showToast(`"${file.name}" を読み込めませんでした。`);
+      continue;
+    }
+    const header = (text.split("\n")[0] || "").trim().replace(/\r$/, "");
+    if (header !== EXPECTED_HEADER) {
+      showToast(`"${file.name}" は列構成が一致しないため読み込めませんでした。`);
+      continue;
+    }
+    localFiles.set(file.name, text);
+    const existing = sourceChipsWrap.querySelector(`[data-name="${CSS.escape(file.name)}"]`);
+    if (existing) {
+      existing.classList.add("active");
+      existing.querySelector("input").checked = true;
+      activeSources.add(file.name);
+    } else {
+      addSourceChip(file.name, { local: true });
+    }
+    added++;
+  }
+  if (added > 0) {
+    await onDataChanged();
+    showToast(`${added}件のCSVを読み込みました。`);
+  }
+}
+
+["dragenter", "dragover"].forEach(evt => {
+  window.addEventListener(evt, e => {
+    e.preventDefault();
+    document.body.classList.add("drag-over");
+  });
+});
+["dragleave", "dragend"].forEach(evt => {
+  window.addEventListener(evt, () => {
+    document.body.classList.remove("drag-over");
+  });
+});
+window.addEventListener("drop", async e => {
+  e.preventDefault();
+  document.body.classList.remove("drag-over");
+  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+    await handleDroppedFiles(e.dataTransfer.files);
+  }
+});
+
+async function init() {
+  let files;
+  try {
+    files = await fetchCsvList();
+  } catch (e) {
+    showMessage("CSV一覧の取得に失敗しました。python server.py でサーバーを起動し、http://localhost:8000/ 経由でこのページを開いてください。");
+    return;
+  }
+  if (files.length === 0) {
+    showMessage("同じ形式(日付,商品名,カテゴリ,地域,数量,単価,売上金額)のCSVがフォルダ内に見つかりませんでした。");
+    return;
+  }
+  files.forEach(addSourceChip);
+  await onDataChanged();
+}
+
+document.getElementById("resetFilters").addEventListener("click", async () => {
+  sourceChipsWrap.querySelectorAll(".chip").forEach(chip => {
+    chip.classList.add("active");
+    chip.querySelector("input").checked = true;
+    activeSources.add(chip.querySelector("input").value);
+  });
+  await onDataChanged();
+});
+
+startInput.addEventListener("change", renderAll);
+endInput.addEventListener("change", renderAll);
+
+function getFilteredRows() {
+  const start = startInput.value;
+  const end = endInput.value;
+  return rows.filter(r =>
+    r.date >= start && r.date <= end && activeCategories.has(r.category)
+  );
+}
+
+// --- Canvas描画ヘルパー ---
+function drawBarChart(canvas, labels, values, opts = {}) {
+  const cssHeight = parseInt(canvas.getAttribute("height"), 10);
+  const dpr = window.devicePixelRatio || 1;
+  const cssWidth = canvas.parentElement.clientWidth;
+  canvas.width = cssWidth * dpr;
+  canvas.height = cssHeight * dpr;
+  canvas.style.height = cssHeight + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+
+  const w = cssWidth, h = cssHeight;
+  const horizontal = !!opts.horizontal;
+  const padLeft = horizontal ? (opts.labelWidth || 140) : 56;
+  const padRight = 16;
+  const padTop = 16;
+  const padBottom = horizontal ? 16 : 32;
+  const plotW = w - padLeft - padRight;
+  const plotH = h - padTop - padBottom;
+  const maxVal = Math.max(...values) * 1.1;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.font = "11px 'Segoe UI', 'Hiragino Kaku Gothic ProN', sans-serif";
+  ctx.strokeStyle = "#e8ecf5";
+  ctx.fillStyle = "#6b6f7a";
+
+  if (!horizontal) {
+    // 縦棒(月別)
+    const gridLines = 4;
+    for (let i = 0; i <= gridLines; i++) {
+      const y = padTop + plotH - (plotH * i) / gridLines;
+      ctx.beginPath();
+      ctx.moveTo(padLeft, y);
+      ctx.lineTo(w - padRight, y);
+      ctx.stroke();
+      const val = (maxVal * i) / gridLines;
+      ctx.textAlign = "right";
+      ctx.fillText(Math.round(val).toLocaleString("ja-JP"), padLeft - 8, y + 4);
+    }
+    const barW = (plotW / labels.length) * 0.5;
+    const gap = (plotW / labels.length) * 0.5;
+    labels.forEach((label, i) => {
+      const x = padLeft + gap / 2 + i * (barW + gap);
+      const barH = (values[i] / maxVal) * plotH;
+      const y = padTop + plotH - barH;
+      const grad = ctx.createLinearGradient(0, y, 0, padTop + plotH);
+      grad.addColorStop(0, "#4c7bf0");
+      grad.addColorStop(1, "#2b4fb0");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(x, y, barW, barH, [6, 6, 0, 0]);
+      ctx.fill();
+
+      ctx.fillStyle = "#2b2d34";
+      ctx.textAlign = "center";
+      ctx.font = "11px 'Segoe UI', sans-serif";
+      ctx.fillText(yen(values[i]), x + barW / 2, y - 6);
+
+      ctx.fillStyle = "#6b6f7a";
+      ctx.fillText(label, x + barW / 2, padTop + plotH + 18);
+    });
+  } else {
+    // 横棒(商品別)
+    const barH = (plotH / labels.length) * 0.55;
+    const gap = (plotH / labels.length) * 0.45;
+    labels.forEach((label, i) => {
+      const y = padTop + gap / 2 + i * (barH + gap);
+      const barW2 = (values[i] / maxVal) * plotW;
+      const grad = ctx.createLinearGradient(padLeft, 0, padLeft + barW2, 0);
+      grad.addColorStop(0, "#2b4fb0");
+      grad.addColorStop(1, "#5f8dfb");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(padLeft, y, Math.max(barW2, 2), barH, [0, 6, 6, 0]);
+      ctx.fill();
+
+      ctx.fillStyle = "#2b2d34";
+      ctx.textAlign = "right";
+      ctx.font = "12px 'Segoe UI', 'Hiragino Kaku Gothic ProN', sans-serif";
+      ctx.fillText(label, padLeft - 10, y + barH / 2 + 4);
+
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#2b4fb0";
+      ctx.font = "11px 'Segoe UI', sans-serif";
+      ctx.fillText(yen(values[i]), padLeft + barW2 + 8, y + barH / 2 + 4);
+    });
+  }
+}
+
+function renderAll() {
+  const filtered = getFilteredRows();
+
+  if (filtered.length === 0) {
+    emptyState.hidden = false;
+    emptyState.textContent = "条件に一致するデータがありません。フィルターを見直してください。";
+    resultsWrap.hidden = true;
+    document.getElementById("periodLabel").textContent = startInput.value && endInput.value
+      ? `${startInput.value} 〜 ${endInput.value}` : "-";
+    document.getElementById("kpiTotal").textContent = yen(0);
+    document.getElementById("kpiCount").textContent = "0件";
+    document.getElementById("kpiQty").textContent = "0個";
+    document.getElementById("kpiAvg").textContent = yen(0);
+    return;
+  }
+  emptyState.hidden = true;
+  resultsWrap.hidden = false;
+
+  // KPI
+  const totalSales = filtered.reduce((s, r) => s + r.sales, 0);
+  const totalQty = filtered.reduce((s, r) => s + r.qty, 0);
+  const count = filtered.length;
+  const filteredDates = filtered.map(r => r.date).sort();
+
+  document.getElementById("periodLabel").textContent = `${filteredDates[0]} 〜 ${filteredDates[filteredDates.length - 1]}`;
+  document.getElementById("kpiTotal").textContent = yen(totalSales);
+  document.getElementById("kpiCount").textContent = count.toLocaleString("ja-JP") + "件";
+  document.getElementById("kpiQty").textContent = totalQty.toLocaleString("ja-JP") + "個";
+  document.getElementById("kpiAvg").textContent = yen(totalSales / count);
+
+  // 月別集計
+  const monthMap = new Map();
+  filtered.forEach(r => monthMap.set(r.month, (monthMap.get(r.month) || 0) + r.sales));
+  const months = [...monthMap.keys()].sort();
+  const monthSales = months.map(m => monthMap.get(m));
+
+  // 商品別集計
+  const productMap = new Map();
+  filtered.forEach(r => {
+    const p = productMap.get(r.product) || { sales: 0, qty: 0, count: 0 };
+    p.sales += r.sales;
+    p.qty += r.qty;
+    p.count += 1;
+    productMap.set(r.product, p);
+  });
+  const products = [...productMap.entries()].sort((a, b) => b[1].sales - a[1].sales);
+
+  // 商品別テーブル
+  const tbody = document.getElementById("productTableBody");
+  tbody.innerHTML = "";
+  products.forEach(([name, d], i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><span class="rank">${i + 1}</span>${name}</td>
+      <td class="num">${yen(d.sales)}</td>
+      <td class="num">${d.qty.toLocaleString("ja-JP")}</td>
+      <td class="num">${d.count.toLocaleString("ja-JP")}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  drawBarChart(document.getElementById("monthChart"), months, monthSales);
+  const top = products.slice(0, 8);
+  drawBarChart(
+    document.getElementById("productChart"),
+    top.map(p => p[0]),
+    top.map(p => p[1].sales),
+    { horizontal: true, labelWidth: 150 }
+  );
+}
+
+init();
+window.addEventListener("resize", renderAll);
+</script>
+</body>
+</html>

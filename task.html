@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>タスク管理</title>
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 48px 16px;
+    background: #f4f5f7;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    color: #2b2d34;
+  }
+
+  #page {
+    width: 100%;
+    max-width: 680px;
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    padding: 28px;
+  }
+
+  #headerRow {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  h1 {
+    font-size: 1.3rem;
+    margin: 0;
+    font-weight: 700;
+  }
+
+  #toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  input[type="month"],
+  .task-input {
+    padding: 9px 10px;
+    font-size: 0.9rem;
+    border: 1px solid #dcdde3;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
+  }
+
+  input[type="month"]:focus,
+  .task-input:focus {
+    border-color: #4d7cff;
+  }
+
+  .add-btn {
+    padding: 9px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+    background: #4d7cff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+
+  .add-btn:hover {
+    background: #3a68eb;
+  }
+
+  .secondary-btn {
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #2b2d34;
+    background: #fff;
+    border: 1px solid #dcdde3;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+
+  .secondary-btn:hover {
+    background: #f4f5f7;
+  }
+
+  #templateEditBtn {
+    padding: 9px 16px;
+    font-size: 0.85rem;
+  }
+
+  .item-card {
+    background: #f9fafb;
+    border: 1px solid #eef0f3;
+    border-left: 4px solid #dcdde3;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .category-todo {
+    background: #f5f8ff;
+    border-color: #dde6ff;
+    border-left-color: #4d7cff;
+  }
+
+  .category-todo .item-title {
+    color: #3a5bd9;
+  }
+
+  .category-irregular {
+    background: #fff9f2;
+    border-color: #ffe6cc;
+    border-left-color: #ff9f43;
+  }
+
+  .category-irregular .item-title {
+    color: #d9760a;
+  }
+
+  .item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .item-title {
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .item-count {
+    font-size: 0.8rem;
+    color: #8a8d99;
+    font-weight: 400;
+    margin-left: 4px;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .input-row .task-input {
+    flex: 1;
+  }
+
+  .task-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .task-list li {
+    padding: 9px 4px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .task-list li:last-child {
+    border-bottom: none;
+  }
+
+  .task-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .task-list input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    accent-color: #4d7cff;
+    cursor: pointer;
+  }
+
+  .task-text {
+    flex: 1;
+    font-size: 0.92rem;
+    word-break: break-all;
+  }
+
+  .task-list li.done > .task-row .task-text {
+    text-decoration: line-through;
+    color: #b0b2bc;
+  }
+
+  .subtask-count {
+    font-size: 0.75rem;
+    color: #8a8d99;
+    flex-shrink: 0;
+  }
+
+  .subtask-list {
+    list-style: none;
+    margin: 6px 0 4px 28px;
+    padding: 0;
+  }
+
+  .subtask-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+    border-bottom: none;
+  }
+
+  .subtask-list input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+  }
+
+  .subtask-text {
+    flex: 1;
+    font-size: 0.84rem;
+    color: #5a5d68;
+    word-break: break-all;
+  }
+
+  .subtask-list li.done .subtask-text {
+    text-decoration: line-through;
+    color: #c3c5cc;
+  }
+
+  .subtask-add-row {
+    display: flex;
+    gap: 6px;
+    margin: 4px 0 0 28px;
+  }
+
+  .subtask-input {
+    flex: 1;
+    padding: 5px 8px;
+    font-size: 0.8rem;
+    border: 1px solid #dcdde3;
+    border-radius: 6px;
+    outline: none;
+    font-family: inherit;
+  }
+
+  .subtask-input:focus {
+    border-color: #4d7cff;
+  }
+
+  .subtask-add-btn {
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #4d7cff;
+    background: #fff;
+    border: 1px solid #dcdde3;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .subtask-add-btn:hover {
+    background: #f4f5f7;
+  }
+
+  .delete-btn {
+    border: none;
+    background: transparent;
+    color: #c7c9d1;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 6px;
+    transition: color 0.15s, background 0.15s;
+    flex-shrink: 0;
+  }
+
+  .delete-btn:hover {
+    color: #ff5f5f;
+    background: #fdeeee;
+  }
+
+  .empty-msg {
+    text-align: center;
+    color: #b0b2bc;
+    font-size: 0.9rem;
+    padding: 24px 0;
+  }
+
+  .empty-msg.small {
+    padding: 8px 0 0;
+    text-align: left;
+  }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 10;
+  }
+
+  .modal-overlay[hidden] {
+    display: none;
+  }
+
+  .modal-panel {
+    background: #fff;
+    border-radius: 14px;
+    padding: 24px;
+    width: 100%;
+    max-width: 520px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .modal-header h2 {
+    font-size: 1.1rem;
+    margin: 0;
+  }
+
+  .modal-desc {
+    font-size: 0.82rem;
+    color: #8a8d99;
+    margin: 0 0 16px;
+  }
+
+  .template-block {
+    border: 1px solid #eef0f3;
+    border-left: 4px solid #dcdde3;
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 14px;
+    background: #f9fafb;
+  }
+
+  .template-block.category-todo {
+    border-left-color: #4d7cff;
+  }
+
+  .template-block.category-irregular {
+    border-left-color: #ff9f43;
+  }
+
+  .template-block-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin: 0 0 10px;
+  }
+
+  .template-block.category-todo .template-block-title {
+    color: #3a5bd9;
+  }
+
+  .template-block.category-irregular .template-block-title {
+    color: #d9760a;
+  }
+
+  .default-task-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+
+  .default-task-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #fff;
+    border: 1px solid #dcdde3;
+    border-radius: 999px;
+    padding: 4px 4px 4px 10px;
+    font-size: 0.8rem;
+  }
+
+  .default-task-chip button {
+    border: none;
+    background: transparent;
+    color: #c7c9d1;
+    cursor: pointer;
+    font-size: 0.9rem;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 50%;
+  }
+
+  .default-task-chip button:hover {
+    color: #ff5f5f;
+  }
+</style>
+</head>
+<body>
+
+<div id="page">
+  <div id="headerRow">
+    <h1>タスク管理</h1>
+    <div id="toolbar">
+      <input type="month" id="monthPicker">
+      <button id="templateEditBtn" class="secondary-btn">⚙ テンプレート編集</button>
+    </div>
+  </div>
+
+  <div id="mainArea"></div>
+</div>
+
+<div id="templateModal" class="modal-overlay" hidden>
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>テンプレート編集</h2>
+      <button id="closeTemplateModalBtn" class="delete-btn" style="font-size: 1.4rem;">×</button>
+    </div>
+    <p class="modal-desc">ここで設定したタスクは、月を初めて選択したときにその月へコピーされます（すでに表示済みの月には影響しません）。</p>
+    <div id="templateItemsContainer"></div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'taskAppData';
+  const CATEGORIES = [
+    { key: 'todo', label: 'TODO' },
+    { key: 'irregular', label: 'この月のイレギュラー' },
+  ];
+
+  const monthPicker = document.getElementById('monthPicker');
+  const templateEditBtn = document.getElementById('templateEditBtn');
+  const mainArea = document.getElementById('mainArea');
+  const templateModal = document.getElementById('templateModal');
+  const templateItemsContainer = document.getElementById('templateItemsContainer');
+  const closeTemplateModalBtn = document.getElementById('closeTemplateModalBtn');
+
+  function uid() {
+    return `id_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function currentMonthKey() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  function defaultData() {
+    return { template: { todo: [], irregular: [] }, months: {}, activeMonth: null };
+  }
+
+  function loadData() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultData();
+      const parsed = JSON.parse(raw);
+      const template = parsed.template || {};
+      return {
+        template: {
+          todo: Array.isArray(template.todo) ? template.todo : [],
+          irregular: Array.isArray(template.irregular) ? template.irregular : [],
+        },
+        months: (parsed.months && typeof parsed.months === 'object') ? parsed.months : {},
+        activeMonth: parsed.activeMonth || null,
+      };
+    } catch {
+      return defaultData();
+    }
+  }
+
+  function saveData() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch {
+      // ストレージが使用できない環境でも表示は継続する
+    }
+  }
+
+  let data = loadData();
+  let pendingFocusCategory = null;
+  let pendingFocusTemplateCategory = null;
+  let pendingFocusTaskId = null;
+
+  function cloneCategoryTasks(texts) {
+    return texts.map(text => ({ id: uid(), text, done: false, subtasks: [] }));
+  }
+
+  function ensureMonth(key) {
+    if (!data.months[key]) {
+      data.months[key] = {
+        todo: cloneCategoryTasks(data.template.todo),
+        irregular: cloneCategoryTasks(data.template.irregular),
+      };
+    }
+    return data.months[key];
+  }
+
+  function selectMonth() {
+    const key = monthPicker.value;
+    if (!key) return;
+    ensureMonth(key);
+    data.activeMonth = key;
+    saveData();
+    render();
+  }
+
+  function applyTemplateToCategory(monthKey, categoryKey) {
+    const month = data.months[monthKey];
+    if (!month) return;
+    const existingTexts = new Set(month[categoryKey].map(t => t.text));
+    data.template[categoryKey]
+      .filter(text => !existingTexts.has(text))
+      .forEach(text => month[categoryKey].push({ id: uid(), text, done: false, subtasks: [] }));
+    saveData();
+    render();
+  }
+
+  function addTask(monthKey, categoryKey, text) {
+    const month = data.months[monthKey];
+    if (!month || !text.trim()) return;
+    month[categoryKey].push({ id: uid(), text: text.trim(), done: false, subtasks: [] });
+    saveData();
+    render();
+  }
+
+  function toggleTask(monthKey, categoryKey, taskId) {
+    const month = data.months[monthKey];
+    const task = month?.[categoryKey].find(t => t.id === taskId);
+    if (task) task.done = !task.done;
+    saveData();
+    render();
+  }
+
+  function deleteTask(monthKey, categoryKey, taskId) {
+    const month = data.months[monthKey];
+    if (!month) return;
+    month[categoryKey] = month[categoryKey].filter(t => t.id !== taskId);
+    saveData();
+    render();
+  }
+
+  function addSubtask(monthKey, categoryKey, taskId, text) {
+    const task = data.months[monthKey]?.[categoryKey].find(t => t.id === taskId);
+    if (!task || !text.trim()) return;
+    if (!task.subtasks) task.subtasks = [];
+    task.subtasks.push({ id: uid(), text: text.trim(), done: false });
+    saveData();
+    render();
+  }
+
+  function toggleSubtask(monthKey, categoryKey, taskId, subtaskId) {
+    const task = data.months[monthKey]?.[categoryKey].find(t => t.id === taskId);
+    const sub = task?.subtasks?.find(s => s.id === subtaskId);
+    if (sub) sub.done = !sub.done;
+    saveData();
+    render();
+  }
+
+  function deleteSubtask(monthKey, categoryKey, taskId, subtaskId) {
+    const task = data.months[monthKey]?.[categoryKey].find(t => t.id === taskId);
+    if (!task) return;
+    task.subtasks = (task.subtasks || []).filter(s => s.id !== subtaskId);
+    saveData();
+    render();
+  }
+
+  function render() {
+    mainArea.innerHTML = '';
+    const key = data.activeMonth;
+
+    if (!key || !data.months[key]) {
+      const empty = document.createElement('p');
+      empty.className = 'empty-msg';
+      empty.textContent = '上部で月を選択するとタスクが表示されます。';
+      mainArea.appendChild(empty);
+      return;
+    }
+
+    CATEGORIES.forEach(cat => {
+      mainArea.appendChild(renderCategoryCard(key, cat.key, cat.label));
+    });
+
+    if (pendingFocusCategory) {
+      const target = mainArea.querySelector(`[data-category="${pendingFocusCategory}"] .task-input`);
+      if (target) target.focus();
+      pendingFocusCategory = null;
+    }
+
+    if (pendingFocusTaskId) {
+      const target = mainArea.querySelector(`[data-task-id="${pendingFocusTaskId}"] .subtask-input`);
+      if (target) target.focus();
+      pendingFocusTaskId = null;
+    }
+  }
+
+  function renderCategoryCard(monthKey, categoryKey, label) {
+    const month = data.months[monthKey];
+    const tasks = month[categoryKey];
+
+    const card = document.createElement('div');
+    card.className = `item-card category-${categoryKey}`;
+    card.dataset.category = categoryKey;
+
+    const header = document.createElement('div');
+    header.className = 'item-header';
+
+    const titleWrap = document.createElement('div');
+    const title = document.createElement('span');
+    title.className = 'item-title';
+    title.textContent = label;
+    const doneCount = tasks.filter(t => t.done).length;
+    const countSpan = document.createElement('span');
+    countSpan.className = 'item-count';
+    countSpan.textContent = tasks.length ? `(${doneCount}/${tasks.length} 完了)` : '';
+    titleWrap.appendChild(title);
+    titleWrap.appendChild(document.createTextNode(' '));
+    titleWrap.appendChild(countSpan);
+
+    const applyBtn = document.createElement('button');
+    applyBtn.className = 'secondary-btn';
+    applyBtn.textContent = 'テンプレートのタスクを追加';
+    applyBtn.addEventListener('click', () => applyTemplateToCategory(monthKey, categoryKey));
+
+    header.appendChild(titleWrap);
+    header.appendChild(applyBtn);
+    card.appendChild(header);
+
+    const inputRow = document.createElement('div');
+    inputRow.className = 'input-row';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'task-input';
+    input.placeholder = '新しいタスクを入力...';
+    input.maxLength = 200;
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-btn';
+    addBtn.textContent = '追加';
+    const doAdd = () => {
+      const text = input.value.trim();
+      if (!text) return;
+      pendingFocusCategory = categoryKey;
+      addTask(monthKey, categoryKey, text);
+    };
+    addBtn.addEventListener('click', doAdd);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') doAdd(); });
+    inputRow.appendChild(input);
+    inputRow.appendChild(addBtn);
+    card.appendChild(inputRow);
+
+    if (tasks.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'empty-msg small';
+      empty.textContent = 'タスクはありません';
+      card.appendChild(empty);
+    } else {
+      const list = document.createElement('ul');
+      list.className = 'task-list';
+      tasks.forEach(task => {
+        list.appendChild(renderTaskItem(monthKey, categoryKey, task));
+      });
+      card.appendChild(list);
+    }
+
+    return card;
+  }
+
+  function renderTaskItem(monthKey, categoryKey, task) {
+    const subtasks = task.subtasks || [];
+
+    const li = document.createElement('li');
+    li.className = task.done ? 'done' : '';
+    li.dataset.taskId = task.id;
+
+    const row = document.createElement('div');
+    row.className = 'task-row';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = task.done;
+    checkbox.addEventListener('change', () => toggleTask(monthKey, categoryKey, task.id));
+
+    const text = document.createElement('span');
+    text.className = 'task-text';
+    text.textContent = task.text;
+
+    row.appendChild(checkbox);
+    row.appendChild(text);
+
+    if (subtasks.length) {
+      const doneSub = subtasks.filter(s => s.done).length;
+      const subCount = document.createElement('span');
+      subCount.className = 'subtask-count';
+      subCount.textContent = `(${doneSub}/${subtasks.length})`;
+      row.appendChild(subCount);
+    }
+
+    const taskDelBtn = document.createElement('button');
+    taskDelBtn.className = 'delete-btn';
+    taskDelBtn.textContent = '×';
+    taskDelBtn.addEventListener('click', () => deleteTask(monthKey, categoryKey, task.id));
+    row.appendChild(taskDelBtn);
+
+    li.appendChild(row);
+
+    if (subtasks.length) {
+      const subList = document.createElement('ul');
+      subList.className = 'subtask-list';
+      subtasks.forEach(sub => {
+        const subLi = document.createElement('li');
+        subLi.className = sub.done ? 'done' : '';
+
+        const subCheckbox = document.createElement('input');
+        subCheckbox.type = 'checkbox';
+        subCheckbox.checked = sub.done;
+        subCheckbox.addEventListener('change', () => toggleSubtask(monthKey, categoryKey, task.id, sub.id));
+
+        const subText = document.createElement('span');
+        subText.className = 'subtask-text';
+        subText.textContent = sub.text;
+
+        const subDelBtn = document.createElement('button');
+        subDelBtn.className = 'delete-btn';
+        subDelBtn.style.fontSize = '0.9rem';
+        subDelBtn.textContent = '×';
+        subDelBtn.addEventListener('click', () => deleteSubtask(monthKey, categoryKey, task.id, sub.id));
+
+        subLi.appendChild(subCheckbox);
+        subLi.appendChild(subText);
+        subLi.appendChild(subDelBtn);
+        subList.appendChild(subLi);
+      });
+      li.appendChild(subList);
+    }
+
+    const subAddRow = document.createElement('div');
+    subAddRow.className = 'subtask-add-row';
+    const subInput = document.createElement('input');
+    subInput.type = 'text';
+    subInput.className = 'subtask-input';
+    subInput.placeholder = '手順を追加...';
+    subInput.maxLength = 200;
+    const subAddBtn = document.createElement('button');
+    subAddBtn.className = 'subtask-add-btn';
+    subAddBtn.textContent = '＋ 手順';
+    const doAddSub = () => {
+      const t = subInput.value.trim();
+      if (!t) return;
+      pendingFocusTaskId = task.id;
+      addSubtask(monthKey, categoryKey, task.id, t);
+    };
+    subAddBtn.addEventListener('click', doAddSub);
+    subInput.addEventListener('keydown', e => { if (e.key === 'Enter') doAddSub(); });
+    subAddRow.appendChild(subInput);
+    subAddRow.appendChild(subAddBtn);
+    li.appendChild(subAddRow);
+
+    return li;
+  }
+
+  function openTemplateModal() {
+    templateModal.hidden = false;
+    renderTemplateModal();
+  }
+
+  function closeTemplateModal() {
+    templateModal.hidden = true;
+  }
+
+  function renderTemplateModal() {
+    templateItemsContainer.innerHTML = '';
+    CATEGORIES.forEach(cat => {
+      templateItemsContainer.appendChild(renderTemplateBlock(cat.key, cat.label));
+    });
+
+    if (pendingFocusTemplateCategory) {
+      const target = templateItemsContainer.querySelector(`[data-category="${pendingFocusTemplateCategory}"] .task-input`);
+      if (target) target.focus();
+      pendingFocusTemplateCategory = null;
+    }
+  }
+
+  function renderTemplateBlock(categoryKey, label) {
+    const block = document.createElement('div');
+    block.className = `template-block category-${categoryKey}`;
+    block.dataset.category = categoryKey;
+
+    const title = document.createElement('p');
+    title.className = 'template-block-title';
+    title.textContent = label;
+    block.appendChild(title);
+
+    const chips = document.createElement('div');
+    chips.className = 'default-task-chips';
+    data.template[categoryKey].forEach((text, idx) => {
+      const chip = document.createElement('span');
+      chip.className = 'default-task-chip';
+
+      const chipText = document.createElement('span');
+      chipText.textContent = text;
+
+      const chipDel = document.createElement('button');
+      chipDel.textContent = '×';
+      chipDel.addEventListener('click', () => {
+        data.template[categoryKey].splice(idx, 1);
+        saveData();
+        renderTemplateModal();
+      });
+
+      chip.appendChild(chipText);
+      chip.appendChild(chipDel);
+      chips.appendChild(chip);
+    });
+    if (data.template[categoryKey].length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'empty-msg small';
+      empty.textContent = 'デフォルトタスクはありません';
+      chips.appendChild(empty);
+    }
+    block.appendChild(chips);
+
+    const addRow = document.createElement('div');
+    addRow.className = 'input-row';
+    addRow.style.marginTop = '10px';
+    addRow.style.marginBottom = '0';
+    const taskInput = document.createElement('input');
+    taskInput.type = 'text';
+    taskInput.className = 'task-input';
+    taskInput.placeholder = 'デフォルトタスクを追加...';
+    taskInput.maxLength = 200;
+    const taskAddBtn = document.createElement('button');
+    taskAddBtn.className = 'add-btn';
+    taskAddBtn.textContent = '追加';
+    const doAddDefaultTask = () => {
+      const text = taskInput.value.trim();
+      if (!text) return;
+      pendingFocusTemplateCategory = categoryKey;
+      data.template[categoryKey].push(text);
+      saveData();
+      renderTemplateModal();
+    };
+    taskAddBtn.addEventListener('click', doAddDefaultTask);
+    taskInput.addEventListener('keydown', e => { if (e.key === 'Enter') doAddDefaultTask(); });
+    addRow.appendChild(taskInput);
+    addRow.appendChild(taskAddBtn);
+    block.appendChild(addRow);
+
+    return block;
+  }
+
+  monthPicker.addEventListener('change', selectMonth);
+  templateEditBtn.addEventListener('click', openTemplateModal);
+  closeTemplateModalBtn.addEventListener('click', closeTemplateModal);
+  templateModal.addEventListener('click', e => { if (e.target === templateModal) closeTemplateModal(); });
+
+  if (!data.activeMonth) {
+    const key = currentMonthKey();
+    ensureMonth(key);
+    data.activeMonth = key;
+    saveData();
+  }
+  monthPicker.value = data.activeMonth;
+  render();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stopwatch</title>
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+    background: radial-gradient(circle at 50% 20%, #23243a 0%, #0e0f1a 70%);
+    font-family: "Inter", "Segoe UI", sans-serif;
+    color: #fff;
+    overflow: hidden;
+  }
+
+  h1 {
+    font-size: 0.85rem;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: #6d7290;
+    margin: 0 0 28px;
+    font-weight: 600;
+  }
+
+  #ring {
+    position: relative;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(145deg, #1a1b2c, #14151f);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.04),
+      inset 0 0 40px rgba(0,0,0,0.5),
+      0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  #ring::before {
+    content: "";
+    position: absolute;
+    inset: 14px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: #7c5cff;
+    border-right-color: #7c5cff;
+    opacity: 0.35;
+    transition: opacity 0.3s;
+  }
+
+  #ring.running::before {
+    animation: spin 2.2s linear infinite;
+    opacity: 0.9;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  #display {
+    font-size: 2.7rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 1px;
+    font-weight: 600;
+    text-shadow: 0 0 18px rgba(124, 92, 255, 0.55);
+    transition: color 0.2s, text-shadow 0.2s;
+  }
+
+  #ms {
+    font-size: 1.3rem;
+    color: #8b8fb3;
+    vertical-align: baseline;
+    margin-left: 2px;
+    transition: color 0.2s;
+  }
+
+  #ring.danger #display {
+    color: #ff3b3b;
+    text-shadow: 0 0 24px rgba(255, 59, 59, 0.75);
+  }
+
+  #ring.danger #ms {
+    color: #ff8080;
+  }
+
+  #ring.danger::before {
+    border-top-color: #ff3b3b;
+    border-right-color: #ff3b3b;
+  }
+
+  #warning {
+    position: absolute;
+    bottom: 46px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: #ff3b3b;
+    opacity: 0;
+    transition: opacity 0.2s;
+    text-shadow: 0 0 14px rgba(255, 59, 59, 0.7);
+  }
+
+  #ring.danger #warning {
+    opacity: 1;
+    animation: blink 1s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  #buttons {
+    margin-top: 40px;
+    display: flex;
+    gap: 18px;
+  }
+
+  button {
+    position: relative;
+    padding: 13px 30px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 999px;
+    cursor: pointer;
+    color: #e8e8f2;
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(6px);
+    transition: transform 0.12s ease, background 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  button:hover:not(:disabled) {
+    background: rgba(255,255,255,0.09);
+    box-shadow: 0 0 18px rgba(255,255,255,0.06);
+  }
+
+  button:active:not(:disabled) {
+    transform: scale(0.94);
+  }
+
+  button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  #startBtn {
+    border-color: rgba(61, 220, 151, 0.4);
+    color: #3ddc97;
+  }
+  #startBtn:hover:not(:disabled) {
+    box-shadow: 0 0 20px rgba(61, 220, 151, 0.35);
+  }
+
+  #stopBtn {
+    border-color: rgba(255, 95, 110, 0.4);
+    color: #ff5f6e;
+  }
+  #stopBtn:hover:not(:disabled) {
+    box-shadow: 0 0 20px rgba(255, 95, 110, 0.35);
+  }
+
+  #resetBtn {
+    border-color: rgba(124, 92, 255, 0.4);
+    color: #a596ff;
+  }
+  #resetBtn:hover:not(:disabled) {
+    box-shadow: 0 0 20px rgba(124, 92, 255, 0.35);
+  }
+</style>
+</head>
+<body>
+
+<h1>Stopwatch</h1>
+
+<div id="ring">
+  <div id="display">00:00:00<span id="ms">.00</span></div>
+  <div id="warning">危険</div>
+</div>
+
+<div id="buttons">
+  <button id="startBtn">Start</button>
+  <button id="stopBtn" disabled>Stop</button>
+  <button id="resetBtn">Reset</button>
+</div>
+
+<script>
+  const ring = document.getElementById('ring');
+  const display = document.getElementById('display');
+  const ms = document.getElementById('ms');
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  let startTime = 0;
+  let elapsed = 0;
+  let timerId = null;
+  let alarmPlayed = false;
+  let audioCtx = null;
+
+  function playAlarm() {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const now = audioCtx.currentTime;
+    [0, 0.18].forEach((delay) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(880, now + delay);
+      gain.gain.setValueAtTime(0.0001, now + delay);
+      gain.gain.exponentialRampToValueAtTime(0.2, now + delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.16);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(now + delay);
+      osc.stop(now + delay + 0.16);
+    });
+  }
+
+  function render(totalMs) {
+    const totalCentis = Math.floor(totalMs / 10);
+    const centis = totalCentis % 100;
+    const totalSeconds = Math.floor(totalCentis / 100);
+    const seconds = totalSeconds % 60;
+    const totalMinutes = Math.floor(totalSeconds / 60);
+    const minutes = totalMinutes % 60;
+    const hours = Math.floor(totalMinutes / 60);
+
+    const pad = (n, len = 2) => String(n).padStart(len, '0');
+    display.firstChild.textContent = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    ms.textContent = `.${pad(centis)}`;
+
+    const isDanger = totalMs > 10000;
+    ring.classList.toggle('danger', isDanger);
+
+    if (isDanger && !alarmPlayed) {
+      alarmPlayed = true;
+      playAlarm();
+    }
+  }
+
+  function tick() {
+    render(elapsed + (Date.now() - startTime));
+    timerId = requestAnimationFrame(tick);
+  }
+
+  function start() {
+    if (timerId !== null) return;
+    startTime = Date.now();
+    timerId = requestAnimationFrame(tick);
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    ring.classList.add('running');
+  }
+
+  function stop() {
+    if (timerId === null) return;
+    cancelAnimationFrame(timerId);
+    elapsed += Date.now() - startTime;
+    timerId = null;
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    ring.classList.remove('running');
+  }
+
+  function reset() {
+    cancelAnimationFrame(timerId);
+    timerId = null;
+    elapsed = 0;
+    alarmPlayed = false;
+    render(0);
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    ring.classList.remove('running');
+  }
+
+  startBtn.addEventListener('click', start);
+  stopBtn.addEventListener('click', stop);
+  resetBtn.addEventListener('click', reset);
+</script>
+
+</body>
+</html>
