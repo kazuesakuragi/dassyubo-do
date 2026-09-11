@@ -1,11 +1,9 @@
 import http.server
 import json
 import os
-import urllib.parse
 
 PORT = 8000
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
-DASHBOARD_FILE = "売上ダッシュボード.html"
 EXPECTED_HEADER = "日付,商品名,カテゴリ,地域,数量,単価,売上金額"
 
 
@@ -14,11 +12,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().__init__(*args, directory=DIRECTORY, **kwargs)
 
     def do_GET(self):
-        if self.path == "/":
-            self.send_response(302)
-            self.send_header("Location", "/" + urllib.parse.quote(DASHBOARD_FILE))
-            self.end_headers()
-            return
         if self.path == "/api/csvs":
             self.send_csv_list()
             return

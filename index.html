@@ -383,9 +383,20 @@ function showToast(msg) {
 }
 
 async function fetchCsvList() {
-  const res = await fetch("/api/csvs");
-  if (!res.ok) throw new Error("failed to list csvs");
-  return res.json();
+  // ローカルのserver.pyがあれば動的に一覧を取得し、
+  // GitHub Pagesなどサーバーが無い環境ではcsvs.json(静的な一覧)にフォールバックする
+  try {
+    const res = await fetch("/api/csvs");
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) return data;
+    }
+  } catch (e) {
+    // ネットワークエラー等はcsvs.jsonへフォールバック
+  }
+  const res2 = await fetch("csvs.json");
+  if (!res2.ok) throw new Error("failed to list csvs");
+  return res2.json();
 }
 
 async function loadSelectedRows() {
