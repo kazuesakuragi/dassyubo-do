@@ -258,6 +258,85 @@
   }
 
   #toast.show { opacity: 1; transform: translateY(0); }
+
+  #chatLog {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 360px;
+    overflow-y: auto;
+    padding: 4px 2px;
+    margin-bottom: 12px;
+  }
+
+  #chatLog:empty::before {
+    content: "売上について質問してみましょう。";
+    color: #9a9dab;
+    font-size: 0.85rem;
+  }
+
+  .chatBubble {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .chatBubble.user {
+    align-self: flex-end;
+    background: #2b4fb0;
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+
+  .chatBubble.assistant {
+    align-self: flex-start;
+    background: #f0f2f7;
+    color: #2b2d34;
+    border-bottom-left-radius: 4px;
+  }
+
+  .chatBubble.error {
+    align-self: flex-start;
+    background: #fdecec;
+    color: #b3261e;
+    border-bottom-left-radius: 4px;
+  }
+
+  #chatForm {
+    display: flex;
+    gap: 8px;
+  }
+
+  #chatInput {
+    flex: 1;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    border: 1px solid #dcdde3;
+    border-radius: 999px;
+    outline: none;
+    font-family: inherit;
+  }
+
+  #chatSend {
+    padding: 10px 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 999px;
+    background: #2b4fb0;
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  #chatSend:disabled {
+    background: #aab4d6;
+    cursor: default;
+  }
 </style>
 </head>
 <body>
@@ -330,6 +409,15 @@
         <tbody id="productTableBody"></tbody>
       </table>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>AIチャット</h2>
+    <div id="chatLog"></div>
+    <form id="chatForm">
+      <input type="text" id="chatInput" placeholder="売上について質問する…" autocomplete="off">
+      <button id="chatSend" type="submit">送信</button>
+    </form>
   </div>
 </div>
 
@@ -577,6 +665,53 @@ function getFilteredRows() {
     r.date >= start && r.date <= end && activeCategories.has(r.category)
   );
 }
+
+// --- AIチャット ---
+const chatMessages = [];
+const chatLog = document.getElementById("chatLog");
+const chatForm = document.getElementById("chatForm");
+const chatInput = document.getElementById("chatInput");
+const chatSendBtn = document.getElementById("chatSend");
+
+function appendChatBubble(role, text) {
+  const div = document.createElement("div");
+  div.className = "chatBubble " + role;
+  div.textContent = text;
+  chatLog.appendChild(div);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return div;
+}
+
+chatForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const text = chatInput.value.trim();
+  if (!text) return;
+  chatInput.value = "";
+  chatSendBtn.disabled = true;
+
+  chatMessages.push({ role: "user", content: text });
+  appendChatBubble("user", text);
+  const pending = appendChatBubble("assistant", "……");
+
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: chatMessages }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    pending.textContent = data.reply;
+    chatMessages.push({ role: "assistant", content: data.reply });
+  } catch (err) {
+    pending.className = "chatBubble error";
+    pending.textContent = "AIチャットに接続できませんでした。python server.py でバックエンドを起動しているか、.envにOPENAI_API_KEYを設定しているか確認してください。(" + err.message + ")";
+    chatMessages.pop();
+  } finally {
+    chatSendBtn.disabled = false;
+    chatInput.focus();
+  }
+});
 
 // --- Canvas描画ヘルパー ---
 function drawBarChart(canvas, labels, values, opts = {}) {

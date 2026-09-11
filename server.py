@@ -1,52 +1,81 @@
-import http.server
-import json
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
+from openai import OpenAI
+from pydantic import BaseModel
+
+load_dotenv()
 
 PORT = 8000
-DIRECTORY = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = Path(__file__).resolve().parent
 EXPECTED_HEADER = "日付,商品名,カテゴリ,地域,数量,単価,売上金額"
 
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
-class Handler(http.server.SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=DIRECTORY, **kwargs)
+app = FastAPI()
 
-    def do_GET(self):
-        if self.path == "/api/csvs":
-            self.send_csv_list()
-            return
-        super().do_GET()
 
-    def send_csv_list(self):
-        names = []
-        for name in sorted(os.listdir(DIRECTORY)):
-            if not name.lower().endswith(".csv"):
-                continue
-            path = os.path.join(DIRECTORY, name)
-            try:
-                with open(path, encoding="utf-8") as f:
-                    header = f.readline().strip()
-            except (OSError, UnicodeDecodeError):
-                continue
-            if header == EXPECTED_HEADER:
-                names.append(name)
+class ChatMessage(BaseModel):
+    role: str
+    content: str
 
-        body = json.dumps(names, ensure_ascii=False).encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
 
-    def log_message(self, fmt, *args):
-        print(f"[{self.log_date_time_string()}] {fmt % args}")
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage]
+
+
+@app.get("/api/csvs")
+def list_csvs():
+    names = []
+    for path in sorted(BASE_DIR.glob("*.csv")):
+        try:
+            with open(path, encoding="utf-8") as f:
+                header = f.readline().strip()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if header == EXPECTED_HEADER:
+            names.append(path.name)
+    return names
+
+
+@app.post("/api/chat")
+def chat(req: ChatRequest):
+    if openai_client is None:
+        raise HTTPException(
+            status_code=500,
+            detail="OPENAI_API_KEY が設定されていません。.env.example を .env にコピーしてAPIキーを設定してください。",
+        )
+    if not req.messages:
+        raise HTTPException(status_code=400, detail="messages is empty")
+
+    system_prompt = {
+        "role": "system",
+        "content": "あなたは売上ダッシュボードのアシスタントです。ユーザーの質問に簡潔に日本語で答えてください。",
+    }
+    openai_messages = [system_prompt] + [m.model_dump() for m in req.messages]
+
+    try:
+        completion = openai_client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=openai_messages,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"OpenAI API呼び出しに失敗しました: {e}")
+
+    return {"reply": completion.choices[0].message.content}
+
+
+# 静的ファイル(index.html, CSVなど)の配信。APIルートの後にマウントすること。
+app.mount("/", StaticFiles(directory=str(BASE_DIR), html=True), name="static")
 
 
 if __name__ == "__main__":
-    with http.server.ThreadingHTTPServer(("127.0.0.1", PORT), Handler) as httpd:
-        print(f"売上ダッシュボードを配信中: http://127.0.0.1:{PORT}/")
-        print("Ctrl+C で停止します。")
-        try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
-            print("\nサーバーを停止しました。")
+    import uvicorn
+
+    print(f"売上ダッシュボードを配信中: http://127.0.0.1:{PORT}/")
+    uvicorn.run(app, host="127.0.0.1", port=PORT)
